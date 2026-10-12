@@ -1,0 +1,1100 @@
+<!-- 交接：已完成 v4 強化版 BMI 計算器，新增健康體重範圍、理想體重、增減重建議、選填年齡性別代謝率（BMR/TDEE）、歷史紀錄（localStorage 存取／重載／單刪／全清）、一鍵複製摘要與列印專用樣式；全離線單檔且包含完整無障礙與防呆；可直接以瀏覽器開啟使用。 -->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMI 計算器 v4 強化版</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f8;
+      --card-bg: #ffffff;
+      --text-main: #333333;
+      --text-muted: #666666;
+      --primary-color: #1976d2;
+      --primary-hover: #1565c0;
+      --border-color: #dcdfe6;
+      --error-color: #d32f2f;
+      --status-underweight: #0288d1;
+      --status-normal: #2e7d32;
+      --status-overweight: #ed6c02;
+      --status-obese: #d32f2f;
+      --accent-bg: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Microsoft JhengHei", "微軟正黑體", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 28px 16px;
+    }
+
+    .container {
+      background: var(--card-bg);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      max-width: 520px;
+      width: 100%;
+      padding: 32px 28px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.65rem;
+      margin-bottom: 22px;
+      color: #1a1a1a;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #374151;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+    }
+
+    input.input-error {
+      border-color: var(--error-color);
+      background-color: #fff8f8;
+    }
+
+    .error-msg {
+      color: var(--error-color);
+      font-size: 0.85rem;
+      margin-top: 5px;
+      min-height: 1.2em;
+      display: none;
+    }
+
+    .error-msg.show {
+      display: block;
+    }
+
+    /* 選填資訊區塊 */
+    .optional-box {
+      background-color: #f9fafb;
+      border: 1px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 18px 0;
+    }
+
+    .optional-header {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #4b5563;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .optional-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .optional-col {
+      flex: 1;
+    }
+
+    .gender-radio-group {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      height: 42px;
+    }
+
+    .radio-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: normal;
+      font-size: 0.95rem;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+
+    .radio-label input[type="radio"] {
+      cursor: pointer;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button.action-btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    button.action-btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: #f0f0f0;
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background-color: #e4e4e4;
+    }
+
+    /* 結果卡片 */
+    .result-card {
+      margin-top: 24px;
+      padding: 22px 20px;
+      background-color: var(--accent-bg);
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      text-align: center;
+      display: none;
+    }
+
+    .result-card.show {
+      display: block;
+    }
+
+    .bmi-value-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .bmi-number {
+      font-size: 2.3rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 9999px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+
+    .status-underweight { background-color: var(--status-underweight); }
+    .status-normal { background-color: var(--status-normal); }
+    .status-overweight { background-color: var(--status-overweight); }
+    .status-obese { background-color: var(--status-obese); }
+
+    .result-tip {
+      font-size: 0.9rem;
+      color: #4b5563;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    /* 詳細指標網格 */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      text-align: left;
+      margin: 16px 0;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .metric-item {
+      background: #ffffff;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #edf2f7;
+    }
+
+    .metric-item.full-width {
+      grid-column: span 2;
+    }
+
+    .metric-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .metric-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .metric-value.highlight-good { color: var(--status-normal); }
+    .metric-value.highlight-warn { color: var(--status-overweight); }
+
+    /* 代謝率與熱量區塊 */
+    .bmr-box {
+      background: #eef6ff;
+      border: 1px solid #cfe2fe;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 12px;
+      text-align: left;
+    }
+
+    .bmr-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #0b5ed7;
+      margin-bottom: 6px;
+    }
+
+    .bmr-details {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.92rem;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+    }
+
+    .bmr-note {
+      font-size: 0.76rem;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* 操作工具列（複製／列印） */
+    .action-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .tool-btn {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: #ffffff;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tool-btn:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .tool-btn.copied {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #86efac;
+    }
+
+    /* 歷史紀錄區塊 */
+    .history-section {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid #edf2f7;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .history-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .clear-all-btn {
+      background: none;
+      border: none;
+      font-size: 0.82rem;
+      color: #dc2626;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 2px 4px;
+    }
+
+    .clear-all-btn:hover {
+      color: #b91c1c;
+    }
+
+    .history-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .history-item:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .history-info {
+      font-size: 0.85rem;
+      color: #1e293b;
+    }
+
+    .history-sub {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .history-del-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .history-del-btn:hover {
+      color: #ef4444;
+      background: #fee2e2;
+    }
+
+    .history-empty {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      text-align: center;
+      padding: 12px;
+    }
+
+    /* 衛福部參考表 */
+    .reference-table {
+      margin-top: 24px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      border-top: 1px solid #edf2f7;
+      padding-top: 16px;
+    }
+
+    .reference-table table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+
+    .reference-table th,
+    .reference-table td {
+      padding: 5px 8px;
+      text-align: left;
+    }
+
+    .reference-table th {
+      font-weight: 600;
+      color: #4a5568;
+    }
+
+    .print-only-title {
+      display: none;
+    }
+
+    /* 列印樣式：僅列印結果卡片與參考標準表 */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+        color: #000000;
+      }
+      .container {
+        box-shadow: none;
+        max-width: 100%;
+        padding: 0;
+      }
+      .print-only-title {
+        display: block;
+        text-align: center;
+        font-size: 1.6rem;
+        margin-bottom: 16px;
+      }
+      h1,
+      .form-group,
+      .optional-box,
+      .btn-group,
+      .action-toolbar,
+      .history-section {
+        display: none !important;
+      }
+      .result-card {
+        display: block !important;
+        border: 1px solid #999;
+        background: #fff;
+        margin-top: 0;
+        page-break-inside: avoid;
+      }
+      .status-badge {
+        border: 1px solid #333;
+        color: #000 !important;
+        background: none !important;
+      }
+      .reference-table {
+        display: block !important;
+        border-top: 1px solid #999;
+        margin-top: 20px;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="print-only-title">BMI 體位健康檢測報告</div>
+    <h1>BMI 計算器</h1>
+
+    <!-- 主要輸入項 -->
+    <div class="form-group">
+      <label for="heightInput">身高（公分 / cm）</label>
+      <input type="number" id="heightInput" placeholder="例如：170" step="any" min="50" max="250" aria-describedby="heightError">
+      <div id="heightError" class="error-msg" role="alert"></div>
+    </div>
+
+    <div class="form-group">
+      <label for="weightInput">體重（公斤 / kg）</label>
+      <input type="number" id="weightInput" placeholder="例如：65" step="any" min="10" max="300" aria-describedby="weightError">
+      <div id="weightError" class="error-msg" role="alert"></div>
+    </div>
+
+    <!-- 選填資訊（年齡與性別） -->
+    <div class="optional-box">
+      <div class="optional-header">
+        <span>選填資訊（估算基礎代謝率 BMR 與每日熱量需求）</span>
+      </div>
+      <div class="optional-row">
+        <div class="optional-col">
+          <label for="ageInput" style="font-size:0.85rem; margin-bottom:4px;">年齡（歲）</label>
+          <input type="number" id="ageInput" placeholder="例如：30" min="1" max="120" step="1" aria-describedby="ageError">
+          <div id="ageError" class="error-msg" role="alert"></div>
+        </div>
+        <div class="optional-col">
+          <span style="display:block; font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:4px;">生理性別</span>
+          <div class="gender-radio-group">
+            <label class="radio-label">
+              <input type="radio" name="gender" value="male" id="genderMale"> 男
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="gender" value="female" id="genderFemale"> 女
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作按鈕 -->
+    <div class="btn-group">
+      <button type="button" class="action-btn btn-secondary" id="resetBtn">重設</button>
+      <button type="button" class="action-btn btn-primary" id="calcBtn">計算</button>
+    </div>
+
+    <!-- 計算結果卡片 -->
+    <div id="resultCard" class="result-card" aria-live="polite">
+      <div class="bmi-value-label">計算結果</div>
+      <div class="bmi-number" id="bmiValue">--</div>
+      <div>
+        <span id="statusBadge" class="status-badge">--</span>
+      </div>
+      <p id="resultTip" class="result-tip"></p>
+
+      <!-- 詳細健康指標 -->
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <div class="metric-label">健康體重範圍 (BMI 18.5–24)</div>
+          <div class="metric-value" id="healthyRangeText">--</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">理想體重 (BMI 22)</div>
+          <div class="metric-value" id="idealWeightText">--</div>
+        </div>
+        <div class="metric-item full-width">
+          <div class="metric-label">距離健康體重區間</div>
+          <div class="metric-value" id="weightDiffText">--</div>
+        </div>
+      </div>
+
+      <!-- 代謝率與每日熱量區塊 (年齡+性別均填寫時顯示) -->
+      <div id="bmrBox" class="bmr-box" style="display: none;">
+        <div class="bmr-title">代謝率與建議攝取熱量</div>
+        <div class="bmr-details">
+          <span>基礎代謝率（BMR）：<strong id="bmrValue">--</strong> kcal / 日</span>
+        </div>
+        <div class="bmr-details">
+          <span>一日建議熱量（靜態生活）：<strong id="tdeeValue">--</strong> kcal / 日</span>
+        </div>
+        <div class="bmr-note">* 依久坐生活型態估算（BMR × 1.2）</div>
+      </div>
+
+      <!-- 結果操作工具列 -->
+      <div class="action-toolbar">
+        <button type="button" class="tool-btn" id="copyBtn">複製結果</button>
+        <button type="button" class="tool-btn" id="printBtn">列印報告</button>
+      </div>
+    </div>
+
+    <!-- 歷史紀錄 -->
+    <div class="history-section">
+      <div class="history-header">
+        <span class="history-title">歷史紀錄（最新 20 筆）</span>
+        <button type="button" class="clear-all-btn" id="clearHistoryBtn">清除全部紀錄</button>
+      </div>
+      <ul class="history-list" id="historyList">
+        <li class="history-empty">尚無歷史計算紀錄</li>
+      </ul>
+      <div id="storageNotice" class="error-msg" style="margin-top:6px;"></div>
+    </div>
+
+    <!-- 衛福部參考標準表 -->
+    <div class="reference-table">
+      <div><strong>衛福部 BMI 體位標準參考：</strong></div>
+      <table>
+        <tbody>
+          <tr><td>過輕</td><td>BMI &lt; 18.5</td></tr>
+          <tr><td>正常</td><td>18.5 ≤ BMI &lt; 24</td></tr>
+          <tr><td>過重（微胖）</td><td>24 ≤ BMI &lt; 27</td></tr>
+          <tr><td>肥胖</td><td>BMI ≥ 27</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // DOM 元素快取
+    const heightInput = document.getElementById('heightInput');
+    const weightInput = document.getElementById('weightInput');
+    const ageInput = document.getElementById('ageInput');
+    const genderRadios = document.getElementsByName('gender');
+
+    const heightError = document.getElementById('heightError');
+    const weightError = document.getElementById('weightError');
+    const ageError = document.getElementById('ageError');
+
+    const calcBtn = document.getElementById('calcBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const printBtn = document.getElementById('printBtn');
+
+    const resultCard = document.getElementById('resultCard');
+    const bmiValue = document.getElementById('bmiValue');
+    const statusBadge = document.getElementById('statusBadge');
+    const resultTip = document.getElementById('resultTip');
+
+    const healthyRangeText = document.getElementById('healthyRangeText');
+    const idealWeightText = document.getElementById('idealWeightText');
+    const weightDiffText = document.getElementById('weightDiffText');
+
+    const bmrBox = document.getElementById('bmrBox');
+    const bmrValue = document.getElementById('bmrValue');
+    const tdeeValue = document.getElementById('tdeeValue');
+
+    const historyList = document.getElementById('historyList');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const storageNotice = document.getElementById('storageNotice');
+
+    const STORAGE_KEY = 'bmi_calculator_v4_history';
+    let currentSummaryText = '';
+
+    // 清除錯誤提示與狀態
+    function clearErrors() {
+      heightError.textContent = '';
+      heightError.classList.remove('show');
+      heightInput.classList.remove('input-error');
+      heightInput.removeAttribute('aria-invalid');
+
+      weightError.textContent = '';
+      weightError.classList.remove('show');
+      weightInput.classList.remove('input-error');
+      weightInput.removeAttribute('aria-invalid');
+
+      ageError.textContent = '';
+      ageError.classList.remove('show');
+      ageInput.classList.remove('input-error');
+      ageInput.removeAttribute('aria-invalid');
+    }
+
+    function getSelectedGender() {
+      for (const r of genderRadios) {
+        if (r.checked) return r.value;
+      }
+      return null;
+    }
+
+    function setSelectedGender(val) {
+      for (const r of genderRadios) {
+        r.checked = (r.value === val);
+      }
+    }
+
+    // 計算主程序
+    function calculateBMI(saveToHistory = true) {
+      clearErrors();
+
+      const rawHeight = heightInput.value.trim();
+      const rawWeight = weightInput.value.trim();
+      const rawAge = ageInput.value.trim();
+      const selectedGender = getSelectedGender();
+
+      let hasError = false;
+      let firstInvalidInput = null;
+
+      // 檢查身高
+      if (!rawHeight) {
+        heightError.textContent = '請輸入數字（例如：170）';
+        heightError.classList.add('show');
+        heightInput.classList.add('input-error');
+        heightInput.setAttribute('aria-invalid', 'true');
+        hasError = true;
+        firstInvalidInput = firstInvalidInput || heightInput;
+      } else {
+        const height = parseFloat(rawHeight);
+        if (isNaN(height)) {
+          heightError.textContent = '請輸入數字（例如：170）';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        } else if (height <= 0) {
+          heightError.textContent = '數值必須大於 0';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        } else if (height < 50) {
+          heightError.textContent = '數值過小，請確認單位是否為公分（需介於 50 至 250 公分）';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        } else if (height > 250) {
+          heightError.textContent = '數值太大，請確認單位是否為公分（需介於 50 至 250 公分）';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        }
+      }
+
+      // 檢查體重
+      if (!rawWeight) {
+        weightError.textContent = '請輸入數字（例如：65）';
+        weightError.classList.add('show');
+        weightInput.classList.add('input-error');
+        weightInput.setAttribute('aria-invalid', 'true');
+        hasError = true;
+        firstInvalidInput = firstInvalidInput || weightInput;
+      } else {
+        const weight = parseFloat(rawWeight);
+        if (isNaN(weight)) {
+          weightError.textContent = '請輸入數字（例如：65）';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        } else if (weight <= 0) {
+          weightError.textContent = '數值必須大於 0';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        } else if (weight < 10) {
+          weightError.textContent = '數值過小，請確認單位是否為公斤（需介於 10 至 300 公斤）';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        } else if (weight > 300) {
+          weightError.textContent = '數值太大，請確認單位是否為公斤（需介於 10 至 300 公斤）';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        }
+      }
+
+      // 檢查選填之年齡 (若有輸入則必須合法 1–120)
+      let parsedAge = null;
+      if (rawAge) {
+        const age = parseInt(rawAge, 10);
+        if (isNaN(age) || age < 1 || age > 120) {
+          ageError.textContent = '請輸入有效的年齡（1–120 歲）';
+          ageError.classList.add('show');
+          ageInput.classList.add('input-error');
+          ageInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || ageInput;
+        } else {
+          parsedAge = age;
+        }
+      }
+
+      if (hasError) {
+        resultCard.classList.remove('show');
+        if (firstInvalidInput) {
+          firstInvalidInput.focus();
+        }
+        return;
+      }
+
+      const height = parseFloat(rawHeight);
+      const weight = parseFloat(rawWeight);
+      const heightM = height / 100;
+
+      // 1. BMI 計算
+      const bmi = weight / (heightM * heightM);
+      const formattedBMI = bmi.toFixed(1);
+
+      let status = '';
+      let badgeClass = '';
+      let tip = '';
+
+      if (bmi < 18.5) {
+        status = '過輕';
+        badgeClass = 'status-underweight';
+        tip = '體重過輕，建議均衡飲食並適度增加營養與肌力訓練。';
+      } else if (bmi < 24) {
+        status = '正常';
+        badgeClass = 'status-normal';
+        tip = '體位標準，請繼續保持良好的飲食與運動習慣！';
+      } else if (bmi < 27) {
+        status = '過重（微胖）';
+        badgeClass = 'status-overweight';
+        tip = '體重稍重，建議注意飲食熱量攝取並多加規律運動。';
+      } else {
+        status = '肥胖';
+        badgeClass = 'status-obese';
+        tip = '體位已達肥胖標準，建議諮詢專業醫師或營養師調整生活作息。';
+      }
+
+      // 2. 健康體重範圍 (BMI 18.5–24)
+      const minHealthy = 18.5 * heightM * heightM;
+      const maxHealthy = 24.0 * heightM * heightM;
+      const minHealthyStr = minHealthy.toFixed(1);
+      const maxHealthyStr = maxHealthy.toFixed(1);
+      healthyRangeText.textContent = `${minHealthyStr} – ${maxHealthyStr} 公斤`;
+
+      // 3. 理想體重 (BMI 22)
+      const idealWeight = 22.0 * heightM * heightM;
+      idealWeightText.textContent = `${idealWeight.toFixed(1)} 公斤`;
+
+      // 4. 距離健康體重區間計算
+      let diffDesc = '';
+      if (weight < minHealthy) {
+        const diff = (minHealthy - weight).toFixed(1);
+        diffDesc = `需增重 ${diff} 公斤`;
+        weightDiffText.className = 'metric-value highlight-warn';
+      } else if (weight > maxHealthy) {
+        const diff = (weight - maxHealthy).toFixed(1);
+        diffDesc = `需減重 ${diff} 公斤`;
+        weightDiffText.className = 'metric-value highlight-warn';
+      } else {
+        diffDesc = '體重已在正常範圍內';
+        weightDiffText.className = 'metric-value highlight-good';
+      }
+      weightDiffText.textContent = diffDesc;
+
+      // 5. 代謝率與每日熱量需求 (年齡與性別皆有時顯示)
+      let bmrInfoText = '';
+      if (parsedAge !== null && selectedGender) {
+        let bmrRaw = 0;
+        if (selectedGender === 'male') {
+          bmrRaw = 10 * weight + 6.25 * height - 5 * parsedAge + 5;
+        } else {
+          bmrRaw = 10 * weight + 6.25 * height - 5 * parsedAge - 161;
+        }
+        const bmrInt = Math.round(bmrRaw);
+        const tdeeInt = Math.round(bmrRaw * 1.2);
+
+        bmrValue.textContent = bmrInt.toLocaleString();
+        tdeeValue.textContent = tdeeInt.toLocaleString();
+        bmrBox.style.display = 'block';
+        bmrInfoText = `｜BMR：${bmrInt} kcal｜每日建議熱量：${tdeeInt} kcal`;
+      } else {
+        bmrBox.style.display = 'none';
+      }
+
+      // 更新結果卡片顯示
+      bmiValue.textContent = `BMI ${formattedBMI}`;
+      statusBadge.textContent = status;
+      statusBadge.className = `status-badge ${badgeClass}`;
+      resultTip.textContent = tip;
+      resultCard.classList.add('show');
+
+      // 產生複製摘要字串
+      currentSummaryText = `BMI 計算結果：${height} cm／${weight} kg → BMI ${formattedBMI}（${status}）｜健康範圍：${minHealthyStr}–${maxHealthyStr} kg｜${diffDesc}${bmrInfoText}`;
+
+      // 寫入歷史紀錄
+      if (saveToHistory) {
+        const now = new Date();
+        const dateStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        addHistoryRecord({
+          id: Date.now(),
+          time: dateStr,
+          height: height,
+          weight: weight,
+          age: parsedAge,
+          gender: selectedGender,
+          bmi: formattedBMI,
+          status: status,
+          badgeClass: badgeClass
+        });
+      }
+    }
+
+    // 歷史紀錄處理 (localStorage)
+    function getStoredHistory() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        storageNotice.textContent = '提示：目前瀏覽器環境無法讀取本地儲存空間。';
+        storageNotice.classList.add('show');
+        return [];
+      }
+    }
+
+    function saveHistory(list) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 20)));
+      } catch (e) {
+        storageNotice.textContent = '提示：目前瀏覽器環境無法寫入本地儲存空間。';
+        storageNotice.classList.add('show');
+      }
+    }
+
+    function addHistoryRecord(record) {
+      const list = getStoredHistory();
+      list.unshift(record);
+      saveHistory(list);
+      renderHistory();
+    }
+
+    function deleteHistoryRecord(id, e) {
+      if (e) e.stopPropagation();
+      let list = getStoredHistory();
+      list = list.filter(item => item.id !== id);
+      saveHistory(list);
+      renderHistory();
+    }
+
+    function clearAllHistory() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {}
+      renderHistory();
+    }
+
+    function loadHistoryItem(item) {
+      heightInput.value = item.height;
+      weightInput.value = item.weight;
+      if (item.age) {
+        ageInput.value = item.age;
+      } else {
+        ageInput.value = '';
+      }
+      setSelectedGender(item.gender || null);
+      calculateBMI(false); // 點擊重載不重複寫入新紀錄
+      resultCard.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderHistory() {
+      const list = getStoredHistory();
+      historyList.innerHTML = '';
+
+      if (list.length === 0) {
+        historyList.innerHTML = '<li class="history-empty">尚無歷史計算紀錄</li>';
+        return;
+      }
+
+      list.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'history-item';
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
+
+        const genderLabel = item.gender === 'male' ? '男' : (item.gender === 'female' ? '女' : '');
+        const extraLabel = (item.age ? `${item.age}歲 ` : '') + genderLabel;
+
+        li.innerHTML = `
+          <div>
+            <div class="history-info">
+              <strong>BMI ${item.bmi}</strong>（${item.status}） — ${item.height} cm / ${item.weight} kg
+            </div>
+            <div class="history-sub">${item.time} ${extraLabel ? `| ${extraLabel}` : ''}</div>
+          </div>
+          <button type="button" class="history-del-btn" title="刪除此筆">刪除</button>
+        `;
+
+        li.addEventListener('click', () => loadHistoryItem(item));
+        li.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') loadHistoryItem(item);
+        });
+
+        const delBtn = li.querySelector('.history-del-btn');
+        delBtn.addEventListener('click', (e) => deleteHistoryRecord(item.id, e));
+
+        historyList.appendChild(li);
+      });
+    }
+
+    // 複製結果至剪貼簿
+    function copyResultSummary() {
+      if (!currentSummaryText) return;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentSummaryText).then(() => {
+          showCopySuccess();
+        }).catch(() => {
+          fallbackCopyText(currentSummaryText);
+        });
+      } else {
+        fallbackCopyText(currentSummaryText);
+      }
+    }
+
+    function fallbackCopyText(text) {
+      const tempInput = document.createElement('textarea');
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        showCopySuccess();
+      } catch (err) {
+        alert('複製失敗，請手動選取複製');
+      }
+      document.body.removeChild(tempInput);
+    }
+
+    function showCopySuccess() {
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = '已複製！';
+      copyBtn.classList.add('copied');
+      setTimeout(() => {
+        copyBtn.textContent = originalText;
+        copyBtn.classList.remove('copied');
+      }, 2000);
+    }
+
+    // 事件監聽綁定
+    calcBtn.addEventListener('click', () => calculateBMI(true));
+
+    [heightInput, weightInput, ageInput].forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          calculateBMI(true);
+        }
+      });
+      input.addEventListener('input', () => {
+        if (input.classList.contains('input-error')) {
+          input.classList.remove('input-error');
+          input.removeAttribute('aria-invalid');
+          const errorElem = document.getElementById(input.id.replace('Input', 'Error'));
+          if (errorElem) {
+            errorElem.textContent = '';
+            errorElem.classList.remove('show');
+          }
+        }
+      });
+    });
+
+    resetBtn.addEventListener('click', () => {
+      heightInput.value = '';
+      weightInput.value = '';
+      ageInput.value = '';
+      setSelectedGender(null);
+      clearErrors();
+      resultCard.classList.remove('show');
+      currentSummaryText = '';
+      heightInput.focus();
+    });
+
+    copyBtn.addEventListener('click', copyResultSummary);
+    printBtn.addEventListener('click', () => window.print());
+    clearHistoryBtn.addEventListener('click', clearAllHistory);
+
+    // 初次載入渲染歷史紀錄
+    renderHistory();
+  </script>
+</body>
+</html>
