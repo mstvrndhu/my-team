@@ -1,0 +1,444 @@
+<!-- 交接：已完成 v2 版本修改，補強無障礙（a11y 標籤與錯誤自動聚焦）、細分具體錯誤提示並限縮合理數值區間（身高 50–250 cm、體重 10–300 kg）；可直接離線於瀏覽器開啟使用。 -->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMI 計算器</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f8;
+      --card-bg: #ffffff;
+      --text-main: #333333;
+      --text-muted: #666666;
+      --primary-color: #1976d2;
+      --primary-hover: #1565c0;
+      --border-color: #dcdfe6;
+      --error-color: #d32f2f;
+      --status-underweight: #0288d1;
+      --status-normal: #2e7d32;
+      --status-overweight: #ed6c02;
+      --status-obese: #d32f2f;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Microsoft JhengHei", "微軟正黑體", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      max-width: 440px;
+      width: 100%;
+      padding: 32px 28px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      margin-bottom: 24px;
+      color: #1a1a1a;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #444444;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+    }
+
+    input.input-error {
+      border-color: var(--error-color);
+      background-color: #fff8f8;
+    }
+
+    .error-msg {
+      color: var(--error-color);
+      font-size: 0.85rem;
+      margin-top: 5px;
+      min-height: 1.2em;
+      display: none;
+    }
+
+    .error-msg.show {
+      display: block;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: #f0f0f0;
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background-color: #e4e4e4;
+    }
+
+    .result-card {
+      margin-top: 26px;
+      padding: 20px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      text-align: center;
+      display: none;
+    }
+
+    .result-card.show {
+      display: block;
+    }
+
+    .bmi-value-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .bmi-number {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 9999px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+
+    .status-underweight { background-color: var(--status-underweight); }
+    .status-normal { background-color: var(--status-normal); }
+    .status-overweight { background-color: var(--status-overweight); }
+    .status-obese { background-color: var(--status-obese); }
+
+    .result-tip {
+      font-size: 0.9rem;
+      color: #4b5563;
+      line-height: 1.5;
+    }
+
+    .reference-table {
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      border-top: 1px solid #edf2f7;
+      padding-top: 16px;
+    }
+
+    .reference-table table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+
+    .reference-table th,
+    .reference-table td {
+      padding: 4px 8px;
+      text-align: left;
+    }
+
+    .reference-table th {
+      font-weight: 600;
+      color: #4a5568;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BMI 計算器</h1>
+
+    <div class="form-group">
+      <label for="heightInput">身高（公分 / cm）</label>
+      <input type="number" id="heightInput" placeholder="例如：170" step="any" min="50" max="250" aria-describedby="heightError">
+      <div id="heightError" class="error-msg" role="alert"></div>
+    </div>
+
+    <div class="form-group">
+      <label for="weightInput">體重（公斤 / kg）</label>
+      <input type="number" id="weightInput" placeholder="例如：65" step="any" min="10" max="300" aria-describedby="weightError">
+      <div id="weightError" class="error-msg" role="alert"></div>
+    </div>
+
+    <div class="btn-group">
+      <button type="button" class="btn-secondary" id="resetBtn">重設</button>
+      <button type="button" class="btn-primary" id="calcBtn">計算</button>
+    </div>
+
+    <div id="resultCard" class="result-card" aria-live="polite">
+      <div class="bmi-value-label">計算結果</div>
+      <div class="bmi-number" id="bmiValue">--</div>
+      <div>
+        <span id="statusBadge" class="status-badge">--</span>
+      </div>
+      <p id="resultTip" class="result-tip"></p>
+    </div>
+
+    <div class="reference-table">
+      <div><strong>衛福部 BMI 體位標準參考：</strong></div>
+      <table>
+        <tbody>
+          <tr><td>過輕</td><td>BMI &lt; 18.5</td></tr>
+          <tr><td>正常</td><td>18.5 ≤ BMI &lt; 24</td></tr>
+          <tr><td>過重（微胖）</td><td>24 ≤ BMI &lt; 27</td></tr>
+          <tr><td>肥胖</td><td>BMI ≥ 27</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const heightInput = document.getElementById('heightInput');
+    const weightInput = document.getElementById('weightInput');
+    const calcBtn = document.getElementById('calcBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const resultCard = document.getElementById('resultCard');
+    const bmiValue = document.getElementById('bmiValue');
+    const statusBadge = document.getElementById('statusBadge');
+    const resultTip = document.getElementById('resultTip');
+    const heightError = document.getElementById('heightError');
+    const weightError = document.getElementById('weightError');
+
+    function clearErrors() {
+      heightError.textContent = '';
+      heightError.classList.remove('show');
+      heightInput.classList.remove('input-error');
+      heightInput.removeAttribute('aria-invalid');
+
+      weightError.textContent = '';
+      weightError.classList.remove('show');
+      weightInput.classList.remove('input-error');
+      weightInput.removeAttribute('aria-invalid');
+    }
+
+    function calculateBMI() {
+      clearErrors();
+
+      const rawHeight = heightInput.value.trim();
+      const rawWeight = weightInput.value.trim();
+      let hasError = false;
+      let firstInvalidInput = null;
+
+      // 檢查身高
+      if (!rawHeight) {
+        heightError.textContent = '請輸入數字（例如：170）';
+        heightError.classList.add('show');
+        heightInput.classList.add('input-error');
+        heightInput.setAttribute('aria-invalid', 'true');
+        hasError = true;
+        firstInvalidInput = firstInvalidInput || heightInput;
+      } else {
+        const height = parseFloat(rawHeight);
+        if (isNaN(height)) {
+          heightError.textContent = '請輸入數字（例如：170）';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        } else if (height <= 0) {
+          heightError.textContent = '數值必須大於 0';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        } else if (height < 50) {
+          heightError.textContent = '數值過小，請確認單位是否為公分（需介於 50 至 250 公分）';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        } else if (height > 250) {
+          heightError.textContent = '數值太大，請確認單位是否為公分（需介於 50 至 250 公分）';
+          heightError.classList.add('show');
+          heightInput.classList.add('input-error');
+          heightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || heightInput;
+        }
+      }
+
+      // 檢查體重
+      if (!rawWeight) {
+        weightError.textContent = '請輸入數字（例如：65）';
+        weightError.classList.add('show');
+        weightInput.classList.add('input-error');
+        weightInput.setAttribute('aria-invalid', 'true');
+        hasError = true;
+        firstInvalidInput = firstInvalidInput || weightInput;
+      } else {
+        const weight = parseFloat(rawWeight);
+        if (isNaN(weight)) {
+          weightError.textContent = '請輸入數字（例如：65）';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        } else if (weight <= 0) {
+          weightError.textContent = '數值必須大於 0';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        } else if (weight < 10) {
+          weightError.textContent = '數值過小，請確認單位是否為公斤（需介於 10 至 300 公斤）';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        } else if (weight > 300) {
+          weightError.textContent = '數值太大，請確認單位是否為公斤（需介於 10 至 300 公斤）';
+          weightError.classList.add('show');
+          weightInput.classList.add('input-error');
+          weightInput.setAttribute('aria-invalid', 'true');
+          hasError = true;
+          firstInvalidInput = firstInvalidInput || weightInput;
+        }
+      }
+
+      if (hasError) {
+        resultCard.classList.remove('show');
+        if (firstInvalidInput) {
+          firstInvalidInput.focus();
+        }
+        return;
+      }
+
+      const height = parseFloat(rawHeight);
+      const weight = parseFloat(rawWeight);
+      const heightMeters = height / 100;
+      const bmi = weight / (heightMeters * heightMeters);
+      const formattedBMI = bmi.toFixed(1);
+
+      let status = '';
+      let badgeClass = '';
+      let tip = '';
+
+      if (bmi < 18.5) {
+        status = '過輕';
+        badgeClass = 'status-underweight';
+        tip = '體重過輕，建議均衡飲食並適度增加營養與肌力訓練。';
+      } else if (bmi < 24) {
+        status = '正常';
+        badgeClass = 'status-normal';
+        tip = '體位標準，請繼續保持良好的飲食與運動習慣！';
+      } else if (bmi < 27) {
+        status = '過重（微胖）';
+        badgeClass = 'status-overweight';
+        tip = '體重稍重，建議注意飲食熱量攝取並多加規律運動。';
+      } else {
+        status = '肥胖';
+        badgeClass = 'status-obese';
+        tip = '體位已達肥胖標準，建議諮詢專業醫師或營養師調整生活作息。';
+      }
+
+      bmiValue.textContent = `BMI ${formattedBMI}`;
+      statusBadge.textContent = status;
+      statusBadge.className = `status-badge ${badgeClass}`;
+      resultTip.textContent = tip;
+      resultCard.classList.add('show');
+    }
+
+    calcBtn.addEventListener('click', calculateBMI);
+
+    [heightInput, weightInput].forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          calculateBMI();
+        }
+      });
+      input.addEventListener('input', () => {
+        if (input.classList.contains('input-error')) {
+          input.classList.remove('input-error');
+          input.removeAttribute('aria-invalid');
+          const errorElem = input.id === 'heightInput' ? heightError : weightError;
+          errorElem.textContent = '';
+          errorElem.classList.remove('show');
+        }
+      });
+    });
+
+    resetBtn.addEventListener('click', () => {
+      heightInput.value = '';
+      weightInput.value = '';
+      clearErrors();
+      resultCard.classList.remove('show');
+      heightInput.focus();
+    });
+  </script>
+</body>
+</html>
